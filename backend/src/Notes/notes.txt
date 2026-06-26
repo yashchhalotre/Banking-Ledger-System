@@ -1,0 +1,131 @@
+Needed packages to install :-
+1. npm i express, npm i mongoose, npm i dotenv, npm i cookie-parser, npm i bcryptjs.
+
+Bank Ledger System Process steps :- 
+1. create server and start server and also connect server to database.
+- process.exit(1); - agar hamara database server se connect nahi ho pata hai toh hamara server band ho jata hai.
+- kyuki without database bahut jada kuch ham nahi kar sakte only resources ko consume karega.
+
+2. app.js file important things 
+- app.use(express.json()) - iss middleware ki help se express ka server req.body ka data read kar sakta hai.    
+- app.use(cookieParser()) - isko yahaa import karna hoga
+
+3. User Authentication steps :-
+- user ka model create karenge - user.model.js in the models folder that is in the src folder.
+- import mongoose then .
+- userSchema create karenge then user model then export kar denge.
+- properties :-
+> email - type,required,trim(mtlb koi bhi space nahi chahiye),lowercase,match(email-regex aayega array ke andar jo user ke email ka format check karega and agar format sahi nahi hota toh array ke andar comma use karke string message print karba denge "invalid email address"), unique:true agar email unique nahi hota hai toh ham ek message show karba denge "email already exists".
+> name - type,required.
+> password - type, required, minlength, select:false (select se kya hoga ki jab bhi user ka data database mein se ham mangba rahe honge toh password nahi ayega uss data mein).
+> timestamps: true
+> userSchema.pre("save", function) - jab bhi user ke data ko save karoge usse pahle ye function run hoga.
+> function - usermodel mein bcryptjs ko import karenge and iss function mein password ko hash mein convert karenge.
+> pre() - password ko hash mein convert karti hai agar password change hua hoga to and database mein save kar degi.
+> user.Schema.methods.comparePassword - ye database mein jo password usse compare karti hai user ka password input mein jo diya gaya hai bo sahi hai ya nahi.
+> bcrypt.compare(); 
+
+4. Authentication ke liye routes create karenge routes folder ke andar - auth.routes.js 
+> auth.routes.js - import express, express.Router() then export and import in app.js file as a authRouter then create prefix of Authentication api -  app.use("/api/auth", authRouter);
+> Register and Login ye 2 apis Authentication ke liye use hongi.
+
+Register API:-
+> in the auth.routes.js file create router.post("/register", yaha par controller jo controllers file mein create karenge register ke liye bo aayega);
+
+5. controllers :-
+> auth.controllers.js iss file mein ham usermodel ko import karenge - userRegisterController
+> req.body mein - email, password, name ye tino aayenge. to req.body mein se ye tino ko nikal lenge.
+> then check lagayenge ki jo user email dal raha hai usse already koi user exist toh nahi karta - await usermodel.findOne({email}). agar user exist karta hai to return kar denge response status hoga 422 and status failed set kar denge
+> agar user exist nahi karta toh create ki help se email, password, name se account create kar denge.
+> jwt(json web token) and jwtsecrets ki help se then token create karbayenge and usme userId pass kar denge and expires lagayenge jo 3 days mein expire ho jayega.
+> cookieparser ki help se cookie mein token store karba denge. response mein user ki details mein id,email and name bhej denge
+
+Login API:-
+> login api create karenge routes mein then controller mein uska controller create karenge.
+> email and password req.body mein se nikal lenge.
+> usermodel.findOne ki help se database mein user find karenge ki register hai ya nahi.
+> agar user nahi mila toh email or password is invalid.
+> and agar user mila toh uske password ko registered ke time wale hash password se compare karbayenge with the help of await user.comparePassword() method
+> agar password bhi galat aata hai tobhi same message show karenge - email or password is invalid.
+> agar password sahi hota hai toh again ek token generate karbayenge with the same method that we already used at the time of register controller.
+> token create hoga then cookie mein set hoga then response send kar denge.
+> jab user ko find karenge then select method ka use karke password bhi bulbayenge - .select("+password");
+
+
+Funtionality - jab bhi account register karoge bese hi ek message email par aayega ki aapne hamare backend Ledger par ek account create kar liya hai.
+> we follow nodemailer documentation.
+> go to Google API Console. then create new project then go to library section and search gmail then enable gmail.
+> go to OAuth consent screen - app name(backend-ledger), useremail(your email) select external
+> go to api and services then go to crediantials then select create crediantials then select oauth client id then select application type(web application)
+> Authorized redirect URIs par 2 link add karni hai according to the documentation.
+> create hone ke baad jo client id and client secret milega usko close nahi karna.
+> OAuth 2.0 playground par jana hai.
+> setting mein jakar client id and client secret dena hai jo generate hua tha.
+> then select gmail APIv1 then select mail..google.com then select gmail after clicking on Authorize apis
+> go to crediantials part in the google console api then select test users and paste your gmail account 
+> client id and client secret and refresh token and email user ko env mein store kar lenge
+> npm install nodemailer
+
+> create services folder then create - email.service.js file and paste the second step code of documentation config line ko remove kar denge
+> ye transporter smtp server se contact karta hai hamare behave par.
+> step3 send email ka code just iske niche paste kar denge.
+> create sendRegistrationEmail usme subject, text, then html ka html format banayenge.
+> sendRegistrationEmail function ke andar await sendEmail ko call karenge and export kar denge.
+> auth.controller.js ke andar emailService ko require karenge then Register controller mein response ke baad email send karenge - emailService.sendRegistrationEmail(user.email, user.name) pass kar denge
+
+
+Create Accounts model:-
+> account.model.js mein model create karenge.
+> app.js mein accountRouter = (/api/accounts, accountRouter) ye router create karenge.
+> account.controller.js - isme account controller create karenge.
+> middleware create karenge taki bo batayega ki user logged in hai ya nahi. token ki help se verify karke.
+> account.routes.js mein use karenge accountRouter ke pahle
+
+Create transaction model:-
+> create ledger model
+> create transaction controller
+> agar transaction successful raha to uske liye ek email function banayenge.
+> agar transaction fail ho gaya toh ek email par message send karne ke liye function banayenge.
+
+create api for balance check:-
+> req.params se accountid ko nikalenge.
+> check karenge ki bohi same user ka account hai ya nahi.
+> POST http://localhosy:3000/api/transactions - iss api ki help se transaction karbayenge.
+> uuid ki help se idempotencyKey denge
+> har transaction mein idempotencyKey change hona chahiye.
+
+Token Blacklisting we use when we logout :-
+> model create karenge blacklist.
+> logout api create karenge
+> token ko nikalenge userlogoutcontroller mein req.cookies.token || req.headers.authorization?split(" ")[ 1 ];
+> token nahi mila toh response bhej denge.
+> agar token milega to usko blacklisting ke baad res.clearCookie("token") iski help se cookie mein token clear karenge.
+> blacklisting kar denge then response bhej denge
+> register controller mein jab token generate hoga to pahle check karenge ki blacklisted token toh nahi hai agar hogi to return ho jayenge.
+> token blacklisting aapne aap database se delete ho jayenge uspe TTL laga hua hota hai.
+
+Deployment:-
+> create .gitignore file iske andar ye likhenge
+> /.env 
+> /node_modules
+
+> go to render.com then create account and login(through github).
+> github ke through login karenge.
+> select new services then select web service
+> crediantials mein github select karenge then follow process then it connects with our github.
+> name - backend-ledger
+> language - Node
+> branch - main
+> root folder mein kuch nahi dena hai
+> build command - npm install
+> start command - node server.js
+> free select 
+> environment variables mein add from .env - 
+> add variables then click on deploy web service
+> in the app.js file create dummy api 
+> app.get("/", (req, res) => {
+    res.send("Ledger service is up and running")
+})
+
+
+live link of backend api project - https://backend-ledger-whnf.onrender.com
